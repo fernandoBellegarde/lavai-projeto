@@ -1,0 +1,1093 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Simulador da Lavagem Delivery</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,500..900&family=Barlow:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: comanda de lava-jato. Premissas gerais no topo, os dois cenários lado a lado
+   (A avulso, B condomínio) com a comanda impressa de cada um; embaixo, a divisão de
+   cada lavagem e o faturamento da plataforma. */
+:root {
+  --bg: #edf1f4;
+  --surface: #ffffff;
+  --paper: #fbfaf3;
+  --ink: #0f1d2a;
+  --ink-2: #445464;
+  --muted: #5d6b78;
+  --line: #dce3e9;
+  --line-strong: #b6c2cc;
+  --accent: #1c5cab;
+  --accent-fill: #2a78d6;
+  --accent-track: #d3e3f6;
+  --s1: #2a78d6;
+  --s2: #eb6834;
+  --s3: #1baf7a;
+  --s4: #eda100;
+  --good: #0ca30c;
+  --warning: #fab219;
+  --critical: #d03b3b;
+  --shadow: rgba(15, 29, 42, 0.10);
+  --font-display: "Archivo", "Arial Black", "Segoe UI", system-ui, sans-serif;
+  --font-ui: "Barlow", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0b1218;
+    --surface: #131d26;
+    --paper: #1b2733;
+    --ink: #e6edf3;
+    --ink-2: #a9b7c4;
+    --muted: #82909c;
+    --line: #233140;
+    --line-strong: #3b4c5b;
+    --accent: #7fb2ef;
+    --accent-fill: #3987e5;
+    --accent-track: #1e3450;
+    --s1: #3987e5;
+    --s2: #d95926;
+    --s3: #199e70;
+    --s4: #c98500;
+    --shadow: rgba(0, 0, 0, 0.45);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0b1218;
+  --surface: #131d26;
+  --paper: #1b2733;
+  --ink: #e6edf3;
+  --ink-2: #a9b7c4;
+  --muted: #82909c;
+  --line: #233140;
+  --line-strong: #3b4c5b;
+  --accent: #7fb2ef;
+  --accent-fill: #3987e5;
+  --accent-track: #1e3450;
+  --s1: #3987e5;
+  --s2: #d95926;
+  --s3: #199e70;
+  --s4: #c98500;
+  --shadow: rgba(0, 0, 0, 0.45);
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+p, ul, dl, dd { margin: 0; }
+h1, h2 { margin: 0; text-wrap: balance; }
+button, input { font: inherit; color: inherit; }
+
+.wrap {
+  max-width: 1140px;
+  margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 36px 64px;
+  display: grid;
+  gap: 32px;
+}
+.wrap > * { min-width: 0; }
+
+.eyebrow {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Topo */
+.topo { display: grid; gap: 10px; }
+h1 {
+  font-family: var(--font-display);
+  font-stretch: 125%;
+  font-weight: 800;
+  font-size: clamp(28px, 5vw, 46px);
+  line-height: 1.04;
+  letter-spacing: -0.015em;
+}
+.lede { max-width: 60ch; font-size: 18px; color: var(--ink-2); }
+.topo-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-top: 6px; }
+.nota-exemplo { font-size: 14px; color: var(--muted); max-width: 52ch; }
+.btn {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  cursor: pointer;
+}
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.aviso { font-size: 14px; font-weight: 600; color: var(--ink-2); }
+
+/* Resumo */
+.resumo { display: grid; gap: 8px; }
+.manchete {
+  font-size: clamp(20px, 2.6vw, 26px);
+  line-height: 1.32;
+  font-weight: 500;
+  max-width: 48ch;
+  text-wrap: pretty;
+}
+.manchete b { font-weight: 700; }
+.manchete-2 { font-size: 16px; color: var(--ink-2); }
+.manchete-2 b { font-weight: 700; color: var(--ink); }
+
+/* Títulos de seção */
+.sec-cab { display: grid; gap: 4px; }
+h2 {
+  font-family: var(--font-display);
+  font-stretch: 112%;
+  font-weight: 750;
+  font-size: 19px;
+  line-height: 1.2;
+}
+.sub { font-size: 15px; color: var(--ink-2); max-width: 64ch; }
+
+/* Premissas */
+.premissas { display: grid; gap: 18px; padding-top: 24px; border-top: 1px solid var(--line); }
+
+/* Controles */
+.controles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 20px 28px; }
+.controle { display: grid; gap: 6px; align-content: start; min-width: 0; }
+.controle-topo { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.controle-topo label { font-size: 15px; font-weight: 500; color: var(--ink-2); }
+.num { display: inline-flex; align-items: baseline; gap: 3px; flex: none; font-size: 17px; font-weight: 700; white-space: nowrap; }
+.num .un { font-size: 13px; font-weight: 500; color: var(--muted); }
+.num input {
+  font-weight: 700;
+  text-align: right;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px dashed var(--line-strong);
+  border-radius: 0;
+  padding: 0 1px;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+.num input::-webkit-outer-spin-button,
+.num input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.num input:hover { border-bottom-color: var(--accent); }
+.num input:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+.dica { font-size: 13px; line-height: 1.35; color: var(--muted); }
+
+input[type="range"] {
+  --pct: 50%;
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 24px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(to right, var(--accent-fill) 0 var(--pct), var(--accent-track) var(--pct) 100%);
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: -7px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--accent-fill);
+  box-shadow: 0 1px 3px var(--shadow);
+}
+input[type="range"]::-moz-range-track { height: 6px; border-radius: 3px; background: var(--accent-track); }
+input[type="range"]::-moz-range-progress { height: 6px; border-radius: 3px; background: var(--accent-fill); }
+input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--accent-fill);
+  box-shadow: 0 1px 3px var(--shadow);
+}
+input[type="range"]:focus-visible { outline: none; }
+input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-fill) 32%, transparent); }
+input[type="range"]:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-fill) 32%, transparent); }
+
+/* Cenários */
+.cenarios { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 20px; }
+.cenario {
+  min-width: 0;
+  display: grid;
+  gap: 22px;
+  align-content: start;
+  padding: 22px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 1px 2px var(--shadow), 0 8px 24px -16px var(--shadow);
+}
+.cen-topo { display: flex; align-items: flex-start; gap: 12px; }
+.cen-letra {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--ink);
+  color: var(--surface);
+  font-family: var(--font-display);
+  font-stretch: 125%;
+  font-weight: 800;
+  font-size: 18px;
+}
+.cen-topo h2 { font-size: 22px; font-stretch: 125%; font-weight: 800; }
+.cen-topo p { margin-top: 2px; font-size: 15px; color: var(--ink-2); }
+.controles-cen { gap: 18px 24px; }
+
+/* Resultado de cada cenário */
+.resultado { display: grid; gap: 16px; padding-top: 20px; border-top: 1px solid var(--line); }
+.res-cabeca { display: grid; gap: 4px; }
+.res-rotulo { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; color: var(--ink-2); }
+.res-linha { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.res-valor { font-size: clamp(34px, 4.6vw, 44px); font-weight: 600; line-height: 1.05; letter-spacing: -0.01em; }
+.res-un { margin-left: 6px; font-size: 17px; font-weight: 500; letter-spacing: 0; color: var(--ink-2); }
+.res-mini { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 15px; color: var(--ink-2); }
+.res-mini li { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+.res-mini b { font-weight: 700; color: var(--ink); }
+
+.chip {
+  --st: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px 3px 4px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--st) 16%, transparent);
+}
+.chip i {
+  width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 800;
+  color: #ffffff;
+  background: var(--st);
+}
+.chip[data-st="good"] { --st: var(--good); }
+.chip[data-st="warning"] { --st: var(--warning); }
+.chip[data-st="warning"] i { color: #2b2000; }
+.chip[data-st="critical"] { --st: var(--critical); }
+
+.meta { display: grid; gap: 8px; }
+.medidor { height: 8px; border-radius: 4px; overflow: hidden; background: var(--accent-track); }
+.medidor span { display: block; width: 0; height: 100%; border-radius: 4px; background: var(--accent-fill); transition: width 0.2s ease; }
+.meta-texto { font-size: 15px; color: var(--ink-2); }
+
+/* Comanda impressa */
+.comanda {
+  position: relative;
+  padding: 14px 16px 24px;
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--ink);
+  background: linear-gradient(var(--paper), var(--paper)) top / 100% calc(100% - 8px) no-repeat;
+  filter: drop-shadow(0 1px 1px var(--shadow)) drop-shadow(0 4px 8px var(--shadow));
+}
+.comanda::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 8px;
+  background:
+    linear-gradient(to bottom right, var(--paper) 50%, transparent 50%) 0 0 / 12px 8px repeat-x,
+    linear-gradient(to bottom left, var(--paper) 50%, transparent 50%) 0 0 / 12px 8px repeat-x;
+}
+.com-cab {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+  border-bottom: 1px dashed var(--line-strong);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.com-lista { display: grid; gap: 5px; }
+.com-linha { display: flex; align-items: baseline; }
+.com-linha dt { min-width: 0; }
+.com-linha::before {
+  content: "";
+  order: 1;
+  flex: 1 1 16px;
+  min-width: 16px;
+  margin: 0 8px;
+  border-bottom: 1px dotted var(--line-strong);
+  transform: translateY(-4px);
+}
+.com-linha dd { order: 2; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.com-linha .sw { margin-right: 8px; }
+.com-total { margin-top: 6px; padding-top: 9px; border-top: 1px dashed var(--line-strong); font-weight: 600; }
+.res-plat { font-size: 15px; color: var(--ink-2); }
+.res-plat .sw { margin-right: 8px; }
+.sw { display: inline-block; flex: none; width: 10px; height: 10px; border-radius: 2px; }
+
+/* Parte de baixo */
+.inferior { display: grid; gap: 20px; }
+@media (min-width: 960px) {
+  .inferior { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); align-items: start; }
+}
+.painel {
+  min-width: 0;
+  display: grid;
+  gap: 18px;
+  align-content: start;
+  padding: 22px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.legenda { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 14px; color: var(--ink-2); }
+.legenda li { display: inline-flex; align-items: center; gap: 7px; }
+
+.plot { --rot-w: 140px; --tot-w: 54px; display: grid; gap: 10px; }
+.plot-corpo { position: relative; display: grid; gap: 18px; padding-block: 6px; }
+.plot-linha, .plot-eixo {
+  display: grid;
+  grid-template-columns: var(--rot-w) minmax(0, 1fr) var(--tot-w);
+  column-gap: 12px;
+  align-items: center;
+}
+.plot-rot { display: grid; min-width: 0; line-height: 1.25; }
+.plot-rot b { font-size: 15px; font-weight: 600; }
+.plot-rot span { font-size: 13px; color: var(--muted); }
+.plot-trilho { position: relative; height: 24px; }
+.plot-barra { position: relative; z-index: 1; display: flex; height: 100%; }
+.seg { flex: none; height: 100%; display: flex; align-items: center; justify-content: center; outline: none; }
+.seg.com-vao { border-left: 2px solid var(--surface); }
+.seg.fim { border-radius: 0 4px 4px 0; }
+.seg:hover { filter: brightness(1.1); }
+.seg:focus-visible { position: relative; z-index: 2; box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--ink); }
+.rot-seg { flex: none; font-size: 12px; font-weight: 600; white-space: nowrap; pointer-events: none; }
+.plot-total { text-align: right; font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.plot-grade { position: absolute; inset: 0 calc(var(--tot-w) + 12px) 0 calc(var(--rot-w) + 12px); pointer-events: none; }
+.plot-grade span { position: absolute; top: 0; bottom: 0; width: 1px; margin-left: -0.5px; background: var(--line); }
+.plot-grade span.zero { background: var(--line-strong); }
+.marca-preco { position: absolute; z-index: 3; top: -5px; bottom: -5px; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--ink); }
+.plot-ticks { position: relative; height: 18px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.plot-ticks span { position: absolute; top: 0; transform: translateX(-50%); }
+.plot-ticks span:first-child { transform: none; }
+.plot-ticks span:last-child { transform: translateX(-100%); }
+@media (max-width: 560px) {
+  .plot { --rot-w: 96px; --tot-w: 46px; }
+}
+
+.plat-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.plat-item { display: grid; gap: 4px; align-content: start; padding-top: 12px; border-top: 1px solid var(--line); }
+.plat-valor { font-size: clamp(26px, 3.2vw, 32px); font-weight: 600; line-height: 1.05; }
+.plat-sub { font-size: 14px; color: var(--ink-2); }
+
+/* Notas */
+.notas { display: grid; gap: 10px; padding-top: 24px; border-top: 1px solid var(--line); color: var(--ink-2); }
+.notas h2 { font-size: 16px; color: var(--ink); }
+.notas ul { padding-left: 20px; display: grid; gap: 4px; max-width: 72ch; font-size: 15px; }
+
+/* Balão do gráfico */
+.balao {
+  position: fixed;
+  z-index: 50;
+  display: grid;
+  gap: 2px;
+  max-width: 240px;
+  padding: 8px 11px;
+  border-radius: 8px;
+  pointer-events: none;
+  font-size: 13px;
+  line-height: 1.3;
+  color: var(--surface);
+  background: var(--ink);
+  box-shadow: 0 6px 18px var(--shadow);
+}
+.balao strong { font-size: 16px; font-weight: 700; }
+.balao .linha { display: inline-flex; align-items: center; gap: 6px; }
+.balao .linha i { flex: none; width: 12px; height: 3px; border-radius: 2px; }
+.balao .cen { opacity: 0.75; }
+
+@media (prefers-reduced-motion: reduce) {
+  .medidor span { transition: none; }
+}
+</style>
+</head>
+<body>
+
+<main class="wrap">
+  <header class="topo">
+    <p class="eyebrow">Lavagem de carro delivery</p>
+    <h1>Simulador da Lavagem Delivery</h1>
+    <p class="lede">Mexa no preço, nos carros por dia e na comissão e veja quanto sobra pro lavador e pra plataforma, no avulso e no dia do condomínio.</p>
+    <div class="topo-acoes">
+      <p class="nota-exemplo">Começa com os números de exemplo da conversa, que são chutes. Troque pelos seus.</p>
+      <button type="button" class="btn" id="reset">Voltar ao exemplo</button>
+      <span class="aviso" id="reset-aviso" role="status" aria-live="polite"></span>
+    </div>
+  </header>
+
+  <section class="resumo" aria-label="Resumo da comparação">
+    <p class="eyebrow">Resumo</p>
+    <p class="manchete" id="manchete-1"></p>
+    <p class="manchete-2" id="manchete-2"></p>
+  </section>
+
+  <section class="premissas" aria-labelledby="t-premissas">
+    <div class="sec-cab">
+      <h2 id="t-premissas">Premissas dos dois cenários</h2>
+      <p class="sub">Valem igual pro avulso e pro condomínio.</p>
+    </div>
+    <div class="controles" id="ctl-g"></div>
+  </section>
+
+  <div class="cenarios">
+    <article class="cenario" aria-labelledby="t-a">
+      <header class="cen-topo">
+        <span class="cen-letra" aria-hidden="true">A</span>
+        <div>
+          <h2 id="t-a">Avulso</h2>
+          <p>Um carro por viagem, cada um num endereço.</p>
+        </div>
+      </header>
+      <div class="controles controles-cen" id="ctl-a"></div>
+      <div class="resultado" id="res-a"></div>
+    </article>
+
+    <article class="cenario" aria-labelledby="t-b">
+      <header class="cen-topo">
+        <span class="cen-letra" aria-hidden="true">B</span>
+        <div>
+          <h2 id="t-b">Dia do condomínio</h2>
+          <p>O lavador passa o dia num prédio e lava vários carros na garagem.</p>
+        </div>
+      </header>
+      <div class="controles controles-cen" id="ctl-b"></div>
+      <div class="resultado" id="res-b"></div>
+    </article>
+  </div>
+
+  <div class="inferior">
+    <section class="painel" aria-labelledby="t-divisao">
+      <div class="sec-cab">
+        <h2 id="t-divisao">Para onde vai o dinheiro de cada lavagem</h2>
+        <p class="sub">Cada barra é o preço de uma lavagem em reais, dividido entre lavador, plataforma, produto e deslocamento.</p>
+      </div>
+      <ul class="legenda" aria-label="Legenda">
+        <li><span class="sw" style="background: var(--s1)"></span>Lavador</li>
+        <li><span class="sw" style="background: var(--s2)"></span>Plataforma</li>
+        <li><span class="sw" style="background: var(--s3)"></span>Produtos</li>
+        <li><span class="sw" style="background: var(--s4)"></span>Deslocamento</li>
+      </ul>
+      <div class="plot" id="plot">
+        <div class="plot-corpo">
+          <div class="plot-grade" id="grade" aria-hidden="true"></div>
+          <div class="plot-linha">
+            <div class="plot-rot"><b>Avulso</b><span id="rot-a"></span></div>
+            <div class="plot-trilho"><div class="plot-barra" id="barra-a"></div><span class="marca-preco" id="marca-a" hidden></span></div>
+            <div class="plot-total" id="tot-a"></div>
+          </div>
+          <div class="plot-linha">
+            <div class="plot-rot"><b>Dia do condomínio</b><span id="rot-b"></span></div>
+            <div class="plot-trilho"><div class="plot-barra" id="barra-b"></div><span class="marca-preco" id="marca-b" hidden></span></div>
+            <div class="plot-total" id="tot-b"></div>
+          </div>
+        </div>
+        <div class="plot-eixo" aria-hidden="true">
+          <span></span>
+          <div class="plot-ticks" id="ticks"></div>
+          <span></span>
+        </div>
+      </div>
+    </section>
+
+    <section class="painel" aria-labelledby="t-plat">
+      <div class="sec-cab">
+        <h2 id="t-plat">Quanto a plataforma fatura</h2>
+        <p class="sub">Soma das comissões no mês, antes de taxa de cartão, marketing, seguro e equipe.</p>
+      </div>
+      <div class="controles" id="ctl-p"></div>
+      <div class="plat-grid">
+        <div class="plat-item">
+          <p class="eyebrow">A · Avulso</p>
+          <p class="plat-valor" id="plat-a"></p>
+          <p class="plat-sub" id="plat-a-sub"></p>
+        </div>
+        <div class="plat-item">
+          <p class="eyebrow">B · Dia do condomínio</p>
+          <p class="plat-valor" id="plat-b"></p>
+          <p class="plat-sub" id="plat-b-sub"></p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <footer class="notas">
+    <h2>O que essa conta não inclui</h2>
+    <ul>
+      <li>MEI do lavador, celular e reposição de microfibra e equipamento.</li>
+      <li>Taxa do cartão ou do Pix, que normalmente sai da parte da plataforma.</li>
+      <li>Chuva, cancelamentos e carros muito sujos, que levam mais tempo.</li>
+      <li>Impostos e custos fixos da plataforma.</li>
+    </ul>
+  </footer>
+</main>
+
+<div class="balao" id="balao" role="tooltip" hidden></div>
+
+<script>
+(() => {
+  'use strict';
+
+  const CAMPOS = {
+    comissao:  { rotulo: 'Comissão da plataforma', min: 0, max: 40, passo: 1, suf: '%' },
+    produto:   { rotulo: 'Produto por carro', min: 0, max: 30, passo: 1, pre: 'R$' },
+    tempo:     { rotulo: 'Tempo de cada lavagem', min: 20, max: 180, passo: 5, suf: 'min' },
+    dias:      { rotulo: 'Dias de trabalho no mês', min: 10, max: 30, passo: 1, suf: 'dias' },
+    meta:      { rotulo: 'Meta de ganho do lavador', min: 1000, max: 10000, passo: 100, pre: 'R$', dica: 'Por mês. Serve de régua pros dois cenários.' },
+    preco:     { rotulo: 'Preço da lavagem', min: 20, max: 250, passo: 1, pre: 'R$' },
+    carros:    { rotulo: 'Carros por dia', min: 1, max: 15, passo: 1, suf: 'carros' },
+    deslocDia: { rotulo: 'Gasto com deslocamento', min: 0, max: 150, passo: 1, pre: 'R$', dica: 'Por dia: gasolina, ônibus, aplicativo.' },
+    deslocMin: { rotulo: 'Tempo de deslocamento', min: 0, max: 90, passo: 5, suf: 'min', dica: 'Entre um carro e o próximo.' },
+    lavadores: { rotulo: 'Lavadores ativos', min: 1, max: 200, passo: 1, suf: 'lavadores' },
+  };
+
+  const GRUPOS = {
+    g: ['comissao', 'produto', 'tempo', 'dias', 'meta'],
+    a: ['preco', 'carros', 'deslocDia', 'deslocMin'],
+    b: ['preco', 'carros', 'deslocDia', 'deslocMin'],
+    p: ['lavadores'],
+  };
+
+  // Os mesmos números do exemplo da conversa.
+  const EXEMPLO = {
+    g: { comissao: 20, produto: 10, tempo: 60, dias: 22, meta: 4000 },
+    a: { preco: 70, carros: 4, deslocDia: 30, deslocMin: 40 },
+    b: { preco: 60, carros: 6, deslocDia: 15, deslocMin: 5 },
+    p: { lavadores: 10 },
+  };
+
+  const NOMES = { a: 'Avulso', b: 'Dia do condomínio' };
+  const PARTES = [
+    { chave: 'lavador', nome: 'Lavador', cor: '--s1' },
+    { chave: 'plataforma', nome: 'Plataforma', cor: '--s2' },
+    { chave: 'produto', nome: 'Produtos', cor: '--s3' },
+    { chave: 'deslocamento', nome: 'Deslocamento', cor: '--s4' },
+  ];
+  const CHAVE = 'simulador-lavagem-delivery:v1';
+
+  const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
+  const copiar = (o) => JSON.parse(JSON.stringify(o));
+  const moeda0 = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  const moeda2 = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const numero1 = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 });
+  const brl0 = (v) => { const r = Math.round(v); return moeda0.format(r === 0 ? 0 : r); };
+  const brl2 = (v) => { const r = Math.round(v * 100) / 100; return moeda2.format(r === 0 ? 0 : r); };
+  const plural = (n, um, varios) => (n === 1 ? um : varios);
+  function duracao(horas) {
+    const total = Math.round(horas * 60);
+    const h = Math.floor(total / 60);
+    const m = total % 60;
+    return m ? `${h}h${String(m).padStart(2, '0')}` : `${h}h`;
+  }
+
+  // A conta inteira: um cenário + as premissas gerais entram, tudo o que a página mostra sai.
+  function calcular(s, g) {
+    const c = g.comissao / 100;
+    const bruto = s.preco * s.carros;
+    const comissaoDia = bruto * c;
+    const produtoDia = g.produto * s.carros;
+    const sobraDia = bruto - comissaoDia - produtoDia - s.deslocDia;
+    const horas = (s.carros * (g.tempo + s.deslocMin)) / 60;
+    const deslocLavagem = s.deslocDia / s.carros;
+    return {
+      preco: s.preco,
+      carros: s.carros,
+      deslocDia: s.deslocDia,
+      comissaoPct: g.comissao,
+      meta: g.meta,
+      bruto,
+      sobraDia,
+      mes: sobraDia * g.dias,
+      horas,
+      porHora: horas > 0 ? sobraDia / horas : 0,
+      plataformaMes: comissaoDia * g.dias,
+      lavagensMes: s.carros * g.dias,
+      precoMin: ((g.meta / g.dias + s.deslocDia) / s.carros + g.produto) / (1 - c),
+      lavagem: {
+        lavador: s.preco * (1 - c) - g.produto - deslocLavagem,
+        plataforma: s.preco * c,
+        produto: g.produto,
+        deslocamento: deslocLavagem,
+      },
+    };
+  }
+  window.simuladorLavagem = { calcular, EXEMPLO };
+
+  let estado = copiar(EXEMPLO);
+  try {
+    const salvo = JSON.parse(localStorage.getItem(CHAVE) || 'null');
+    if (salvo && typeof salvo === 'object') {
+      for (const [grupo, campos] of Object.entries(GRUPOS)) {
+        for (const campo of campos) {
+          const v = salvo[grupo] && salvo[grupo][campo];
+          if (typeof v === 'number' && Number.isFinite(v)) estado[grupo][campo] = clamp(v, CAMPOS[campo].min, CAMPOS[campo].max);
+        }
+      }
+    }
+  } catch (e) { /* sem armazenamento no navegador: segue com o exemplo */ }
+
+  let timerSalvar;
+  function salvar() {
+    clearTimeout(timerSalvar);
+    timerSalvar = setTimeout(() => {
+      try { localStorage.setItem(CHAVE, JSON.stringify(estado)); } catch (e) { /* ignora */ }
+    }, 250);
+  }
+
+  // ---------- Controles ----------
+  const controles = {};
+
+  function unidade(texto) {
+    const s = document.createElement('span');
+    s.className = 'un';
+    s.textContent = texto;
+    return s;
+  }
+
+  function criarControle(grupo, campo) {
+    const c = CAMPOS[campo];
+    const id = `${grupo}-${campo}`;
+    const caixa = document.createElement('div');
+    caixa.className = 'controle';
+
+    const topo = document.createElement('div');
+    topo.className = 'controle-topo';
+    const rotulo = document.createElement('label');
+    rotulo.htmlFor = `${id}-n`;
+    rotulo.textContent = c.rotulo;
+    const num = document.createElement('span');
+    num.className = 'num';
+    if (c.pre) num.append(unidade(c.pre));
+    const numero = document.createElement('input');
+    numero.type = 'number';
+    numero.id = `${id}-n`;
+    numero.min = c.min;
+    numero.max = c.max;
+    numero.step = 'any';
+    numero.inputMode = 'decimal';
+    numero.style.width = `${String(c.max).length + 1}ch`;
+    num.append(numero);
+    if (c.suf) num.append(unidade(c.suf));
+    topo.append(rotulo, num);
+
+    const faixa = document.createElement('input');
+    faixa.type = 'range';
+    faixa.id = id;
+    faixa.min = c.min;
+    faixa.max = c.max;
+    faixa.step = c.passo;
+    faixa.setAttribute('aria-label', c.rotulo);
+
+    caixa.append(topo, faixa);
+    if (c.dica) {
+      const dica = document.createElement('p');
+      dica.className = 'dica';
+      dica.textContent = c.dica;
+      caixa.append(dica);
+    }
+
+    faixa.addEventListener('input', () => definir(grupo, campo, Number(faixa.value), 'faixa'));
+    numero.addEventListener('input', () => {
+      const v = numero.valueAsNumber;
+      if (Number.isFinite(v) && v >= c.min && v <= c.max) definir(grupo, campo, v, 'numero');
+    });
+    numero.addEventListener('change', () => {
+      const v = numero.valueAsNumber;
+      definir(grupo, campo, Number.isFinite(v) ? clamp(v, c.min, c.max) : estado[grupo][campo]);
+    });
+
+    controles[id] = { faixa, numero, grupo, campo };
+    return caixa;
+  }
+
+  function sincronizar(id, origem) {
+    const { faixa, numero, grupo, campo } = controles[id];
+    const c = CAMPOS[campo];
+    const v = estado[grupo][campo];
+    if (origem !== 'faixa') faixa.value = v;
+    if (origem !== 'numero') numero.value = v;
+    faixa.style.setProperty('--pct', `${((clamp(v, c.min, c.max) - c.min) / (c.max - c.min)) * 100}%`);
+  }
+
+  function definir(grupo, campo, v, origem) {
+    estado[grupo][campo] = v;
+    sincronizar(`${grupo}-${campo}`, origem);
+    salvar();
+    render();
+  }
+
+  for (const [grupo, campos] of Object.entries(GRUPOS)) {
+    const alvo = document.getElementById(`ctl-${grupo}`);
+    for (const campo of campos) alvo.append(criarControle(grupo, campo));
+  }
+  Object.keys(controles).forEach((id) => sincronizar(id));
+
+  // ---------- Resultado de cada cenário ----------
+  const refs = {};
+
+  function montarResultado(k) {
+    const raiz = document.getElementById(`res-${k}`);
+    raiz.innerHTML = `
+      <div class="res-cabeca">
+        <p class="res-rotulo"><span class="sw" style="background: var(--s1)"></span>O lavador fica com</p>
+        <div class="res-linha">
+          <p class="res-valor"><span data-r="mes"></span><span class="res-un">por mês</span></p>
+          <span class="chip" data-r="chipMeta"><i aria-hidden="true"></i><span></span></span>
+        </div>
+      </div>
+      <ul class="res-mini">
+        <li><b data-r="dia"></b> por dia</li>
+        <li><b data-r="hora"></b> por hora</li>
+        <li><b data-r="horas"></b> de trabalho por dia <span class="chip" data-r="chipHoras"><i aria-hidden="true"></i><span></span></span></li>
+      </ul>
+      <div class="meta">
+        <div class="medidor" role="meter" aria-label="Quanto da meta o lavador alcança" aria-valuemin="0" aria-valuemax="100" data-r="medidor"><span data-r="medidorFill"></span></div>
+        <p class="meta-texto" data-r="metaTexto"></p>
+      </div>
+      <div class="comanda">
+        <p class="com-cab"><span>Comanda · 1 lavagem</span><span>OS ${k.toUpperCase()}-001</span></p>
+        <dl class="com-lista">
+          <div class="com-linha"><dt>Preço da lavagem</dt><dd data-r="cPreco"></dd></div>
+          <div class="com-linha"><dt><span class="sw" style="background: var(--s2)"></span><span data-r="cComissaoRot"></span></dt><dd data-r="cComissao"></dd></div>
+          <div class="com-linha"><dt><span class="sw" style="background: var(--s3)"></span>Produtos</dt><dd data-r="cProduto"></dd></div>
+          <div class="com-linha"><dt><span class="sw" style="background: var(--s4)"></span><span data-r="cDeslocRot"></span></dt><dd data-r="cDesloc"></dd></div>
+          <div class="com-linha com-total"><dt><span class="sw" style="background: var(--s1)"></span>Fica com o lavador</dt><dd data-r="cLavador"></dd></div>
+        </dl>
+      </div>
+      <p class="res-plat"><span class="sw" style="background: var(--s2)"></span><span data-r="plat"></span></p>`;
+    const r = {};
+    raiz.querySelectorAll('[data-r]').forEach((n) => { r[n.dataset.r] = n; });
+    refs[k] = r;
+  }
+  montarResultado('a');
+  montarResultado('b');
+
+  function chip(no, [st, icone, texto]) {
+    no.dataset.st = st;
+    no.querySelector('i').textContent = icone;
+    no.querySelector('span').textContent = texto;
+  }
+  function statusMeta(r) {
+    if (r.mes <= 0) return ['critical', '✕', 'No prejuízo'];
+    if (r.mes >= r.meta) return ['good', '✓', 'Bate a meta'];
+    return ['warning', '!', 'Abaixo da meta'];
+  }
+  function statusHoras(h) {
+    if (h <= 9) return ['good', '✓', 'Cabe no dia'];
+    if (h <= 11) return ['warning', '!', 'Dia puxado'];
+    return ['critical', '✕', 'Não cabe no dia'];
+  }
+
+  function pintarCenario(k, r) {
+    const n = refs[k];
+    n.mes.textContent = brl0(r.mes);
+    chip(n.chipMeta, statusMeta(r));
+    n.dia.textContent = brl0(r.sobraDia);
+    n.hora.textContent = brl0(r.porHora);
+    n.horas.textContent = duracao(r.horas);
+    chip(n.chipHoras, statusHoras(r.horas));
+
+    const parte = clamp(r.mes / r.meta, 0, 1);
+    n.medidorFill.style.width = `${parte * 100}%`;
+    n.medidor.setAttribute('aria-valuenow', String(Math.round(parte * 100)));
+
+    const minimo = Math.ceil(r.precoMin - 1e-9);
+    const mantendo = `mantendo ${r.carros} ${plural(r.carros, 'carro', 'carros')} por dia`;
+    let texto;
+    if (r.mes <= 0) {
+      texto = `Desse jeito o lavador perde dinheiro. Pra ganhar ${brl0(r.meta)} por mês ${mantendo}, a lavagem teria que custar pelo menos ${brl0(minimo)}.`;
+    } else if (r.mes >= r.meta) {
+      const folga = r.mes - r.meta;
+      texto = (Math.round(folga) >= 1 ? `Passa a meta de ${brl0(r.meta)} em ${brl0(folga)}.` : `Bate a meta de ${brl0(r.meta)} certinho.`)
+        + ` O preço mínimo pra chegar nela, ${mantendo}, seria ${brl0(minimo)}.`;
+    } else {
+      texto = `Chega a ${Math.round(parte * 100)}% da meta de ${brl0(r.meta)}. Pra bater a meta ${mantendo}, a lavagem teria que custar pelo menos ${brl0(minimo)}.`;
+    }
+    n.metaTexto.textContent = texto;
+
+    const l = r.lavagem;
+    n.cPreco.textContent = brl2(r.preco);
+    n.cComissaoRot.textContent = `Comissão (${numero1.format(r.comissaoPct)}%)`;
+    n.cComissao.textContent = `− ${brl2(l.plataforma)}`;
+    n.cProduto.textContent = `− ${brl2(l.produto)}`;
+    n.cDeslocRot.textContent = `Deslocamento (${brl0(r.deslocDia)} ÷ ${r.carros} ${plural(r.carros, 'carro', 'carros')})`;
+    n.cDesloc.textContent = `− ${brl2(l.deslocamento)}`;
+    n.cLavador.textContent = brl2(l.lavador);
+    n.plat.textContent = `A plataforma fica com ${brl2(l.plataforma)} por lavagem, ou ${brl0(r.plataformaMes)} por mês com este lavador.`;
+  }
+
+  // ---------- Resumo ----------
+  function frase(no, partes) {
+    no.replaceChildren(...partes.map((p) => {
+      if (typeof p === 'string') return document.createTextNode(p);
+      const b = document.createElement('b');
+      b.textContent = p.b;
+      return b;
+    }));
+  }
+  function diferenca(d) {
+    const r = Math.round(d);
+    if (r > 0) return `${brl0(r)} a mais`;
+    if (r < 0) return `${brl0(-r)} a menos`;
+    return null;
+  }
+  function pintarResumo(ra, rb) {
+    const lavador = diferenca(rb.mes - ra.mes);
+    const cliente = diferenca(rb.preco - ra.preco);
+    const plataforma = diferenca(rb.plataformaMes - ra.plataformaMes);
+    const p = ['Comparado ao avulso, no dia do condomínio o lavador ganha '];
+    if (lavador) p.push({ b: lavador }, ' por mês'); else p.push('o mesmo por mês');
+    p.push(' e o cliente paga ');
+    if (cliente) p.push({ b: cliente }, ' por lavagem.'); else p.push('o mesmo preço.');
+    frase(document.getElementById('manchete-1'), p);
+    frase(document.getElementById('manchete-2'), plataforma
+      ? ['Pra plataforma, são ', { b: plataforma }, ' por lavador no mês.']
+      : ['Pra plataforma, dá o mesmo por lavador no mês.']);
+  }
+
+  // ---------- Gráfico: divisão de cada lavagem ----------
+  const balao = document.getElementById('balao');
+  const linhas = {};
+
+  function montarGrafico() {
+    for (const k of ['a', 'b']) {
+      const barra = document.getElementById(`barra-${k}`);
+      const segs = PARTES.map((parte) => {
+        const s = document.createElement('div');
+        s.className = 'seg';
+        s.tabIndex = 0;
+        s.setAttribute('role', 'img');
+        s.style.background = `var(${parte.cor})`;
+        const rot = document.createElement('span');
+        rot.className = 'rot-seg';
+        s.append(rot);
+        const item = { s, rot, parte, dados: null };
+        s.addEventListener('pointerenter', (e) => mostrarBalao(item, e));
+        s.addEventListener('pointermove', (e) => mostrarBalao(item, e));
+        s.addEventListener('pointerleave', (e) => { if (e.pointerType !== 'touch') esconderBalao(); });
+        s.addEventListener('focus', () => mostrarBalao(item));
+        s.addEventListener('blur', esconderBalao);
+        barra.append(s);
+        return item;
+      });
+      linhas[k] = {
+        segs,
+        rotulo: document.getElementById(`rot-${k}`),
+        total: document.getElementById(`tot-${k}`),
+        marca: document.getElementById(`marca-${k}`),
+      };
+    }
+    document.addEventListener('pointerdown', (e) => { if (!e.target.closest('.seg')) esconderBalao(); });
+    window.addEventListener('scroll', esconderBalao, { passive: true });
+  }
+
+  function escala(max) {
+    for (const passo of [1, 2, 2.5, 5, 10, 20, 25, 50, 100, 200, 250, 500]) {
+      const n = Math.ceil(max / passo);
+      if (n <= 5) return { passo, topo: Math.max(passo, n * passo) };
+    }
+    return { passo: 1000, topo: Math.ceil(max / 1000) * 1000 };
+  }
+
+  function corDoTexto(fundo) {
+    const m = fundo.match(/[\d.]+/g);
+    if (!m || m.length < 3) return '#0b1117';
+    const [r, g, b] = m.slice(0, 3).map((x) => {
+      const c = Number(x) / 255;
+      return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    });
+    const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    return 1.05 / (lum + 0.05) >= (lum + 0.05) / 0.0553 ? '#ffffff' : '#0b1117';
+  }
+
+  function rotular(item) {
+    const { valor, nome } = item.dados;
+    for (const t of [`${nome} ${brl0(valor)}`, brl0(valor), '']) {
+      item.rot.textContent = t;
+      if (!t || item.rot.offsetWidth + 12 <= item.s.clientWidth) break;
+    }
+    item.rot.style.color = corDoTexto(getComputedStyle(item.s).backgroundColor);
+  }
+
+  function pintarGrafico(ra, rb) {
+    const res = { a: ra, b: rb };
+    const maior = Math.max(...[ra, rb].map((r) => Math.max(r.preco, r.lavagem.plataforma + r.lavagem.produto + r.lavagem.deslocamento)));
+    const { passo, topo } = escala(maior);
+
+    const ticks = document.getElementById('ticks');
+    const grade = document.getElementById('grade');
+    ticks.replaceChildren();
+    grade.replaceChildren();
+    for (let v = 0; v <= topo + 1e-9; v += passo) {
+      const pos = `${(v / topo) * 100}%`;
+      const t = document.createElement('span');
+      t.textContent = numero1.format(v);
+      t.style.left = pos;
+      ticks.append(t);
+      const linha = document.createElement('span');
+      linha.style.left = pos;
+      if (v === 0) linha.className = 'zero';
+      grade.append(linha);
+    }
+
+    for (const k of ['a', 'b']) {
+      const r = res[k];
+      const L = linhas[k];
+      const valores = {
+        lavador: Math.max(0, r.lavagem.lavador),
+        plataforma: r.lavagem.plataforma,
+        produto: r.lavagem.produto,
+        deslocamento: r.lavagem.deslocamento,
+      };
+      let primeiro = true;
+      let ultimo = null;
+      for (const item of L.segs) {
+        const v = valores[item.parte.chave];
+        item.s.classList.remove('com-vao', 'fim');
+        item.s.hidden = !(v > 0.004);
+        if (item.s.hidden) { item.dados = null; continue; }
+        item.s.style.width = `${(v / topo) * 100}%`;
+        if (!primeiro) item.s.classList.add('com-vao');
+        primeiro = false;
+        ultimo = item;
+        const pct = Math.round((v / r.preco) * 100);
+        item.dados = { valor: v, nome: item.parte.nome, pct, cenario: NOMES[k] };
+        item.s.setAttribute('aria-label', `${NOMES[k]}, ${item.parte.nome}: ${brl2(v)}, ${pct}% do preço`);
+      }
+      if (ultimo) ultimo.s.classList.add('fim');
+      for (const item of L.segs) if (item.dados) rotular(item);
+
+      const lav = r.lavagem.lavador;
+      L.rotulo.textContent = lav > 0 ? `lavador fica com ${Math.round((lav / r.preco) * 100)}%` : 'lavador no prejuízo';
+      L.total.textContent = brl0(r.preco);
+      const custos = valores.plataforma + valores.produto + valores.deslocamento;
+      L.marca.hidden = !(custos > r.preco + 0.004);
+      if (!L.marca.hidden) L.marca.style.left = `${(r.preco / topo) * 100}%`;
+    }
+  }
+
+  function mostrarBalao(item, e) {
+    const d = item.dados;
+    if (!d) return;
+    const forte = document.createElement('strong');
+    forte.textContent = brl2(d.valor);
+    const linha = document.createElement('span');
+    linha.className = 'linha';
+    const chave = document.createElement('i');
+    chave.style.background = `var(${item.parte.cor})`;
+    const nome = document.createElement('span');
+    nome.textContent = `${d.nome} · ${d.pct}% do preço`;
+    linha.append(chave, nome);
+    const cen = document.createElement('span');
+    cen.className = 'cen';
+    cen.textContent = d.cenario;
+    balao.replaceChildren(forte, linha, cen);
+    balao.hidden = false;
+
+    let x;
+    let y;
+    if (e && typeof e.clientX === 'number') { x = e.clientX; y = e.clientY; }
+    else { const b = item.s.getBoundingClientRect(); x = b.left + b.width / 2; y = b.top; }
+    const w = balao.offsetWidth;
+    const h = balao.offsetHeight;
+    balao.style.left = `${clamp(x - w / 2, 8, window.innerWidth - w - 8)}px`;
+    balao.style.top = `${y - h - 12 < 8 ? y + 18 : y - h - 12}px`;
+  }
+  function esconderBalao() { balao.hidden = true; }
+
+  // ---------- Plataforma ----------
+  function pintarPlataforma(ra, rb) {
+    const n = estado.p.lavadores;
+    for (const [k, r] of [['a', ra], ['b', rb]]) {
+      document.getElementById(`plat-${k}`).textContent = brl0(r.plataformaMes * n);
+      document.getElementById(`plat-${k}-sub`).textContent =
+        `${brl0(r.plataformaMes)} por lavador · ${numero1.format(r.lavagensMes * n)} lavagens no mês`;
+    }
+  }
+
+  // ---------- Tudo junto ----------
+  let ultimo = null;
+  function render() {
+    const ra = calcular(estado.a, estado.g);
+    const rb = calcular(estado.b, estado.g);
+    ultimo = { ra, rb };
+    pintarCenario('a', ra);
+    pintarCenario('b', rb);
+    pintarResumo(ra, rb);
+    pintarGrafico(ra, rb);
+    pintarPlataforma(ra, rb);
+  }
+
+  montarGrafico();
+  render();
+
+  const aviso = document.getElementById('reset-aviso');
+  let timerAviso;
+  document.getElementById('reset').addEventListener('click', () => {
+    estado = copiar(EXEMPLO);
+    Object.keys(controles).forEach((id) => sincronizar(id));
+    try { localStorage.removeItem(CHAVE); } catch (e) { /* ignora */ }
+    render();
+    aviso.textContent = 'Valores do exemplo de volta.';
+    clearTimeout(timerAviso);
+    timerAviso = setTimeout(() => { aviso.textContent = ''; }, 2500);
+  });
+
+  // Os rótulos dentro das barras dependem da largura e das cores do tema.
+  if ('ResizeObserver' in window) {
+    new ResizeObserver(() => { if (ultimo) pintarGrafico(ultimo.ra, ultimo.rb); }).observe(document.getElementById('plot'));
+  }
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(render);
+  const temaEscuro = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+  if (temaEscuro && temaEscuro.addEventListener) temaEscuro.addEventListener('change', render);
+  new MutationObserver(render).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+})();
+</script>
+</body>
+</html>

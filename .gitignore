@@ -1,0 +1,6 @@
+# Arquivos temporários do Word e do sistema
+~$*
+*.tmp
+Thumbs.db
+desktop.ini
+.DS_Store
